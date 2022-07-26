@@ -38,7 +38,7 @@ libperftest_a_SOURCES = src/get_clock.c src/perftest_communication.c src/perftes
 noinst_HEADERS = src/get_clock.h src/perftest_communication.h src/perftest_parameters.h src/perftest_resources.h src/perftest_counters.h
 
 bin_PROGRAMS = ib_send_bw ib_send_lat ib_write_lat ib_write_bw ib_read_lat ib_read_bw ib_atomic_lat ib_atomic_bw
-bin_SCRIPTS = run_perftest_loopback run_perftest_multi_devices
+bin_SCRIPTS = run_perftest_loopback run_perftest_multi_devices send_bw_exec_mcconfig.py
 
 if HAVE_RAW_ETH
 libperftest_a_SOURCES += src/raw_ethernet_resources.c

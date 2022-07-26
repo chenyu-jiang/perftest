@@ -637,6 +637,8 @@ int main(int argc, char *argv[])
 				fprintf(stderr," Parser function exited with Error\n");
 			return FAILURE;
 		}
+		// reset getopt
+		optind = 1;
 		if((user_params[i].connection_type == DC || user_params[i].use_xrc) && user_params[i].duplex) {
 			user_params[i].num_of_qps *= 2;
 		}

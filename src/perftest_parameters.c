@@ -819,7 +819,7 @@ static int open_file_write(const char* file_path)
 {
 	int fd;
 
-	fd = open(file_path, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC,S_IRUSR|S_IWUSR);
+	fd = open(file_path, O_APPEND|O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC,S_IRUSR|S_IWUSR);
 
 	if (fd < 0)
 		fprintf(stderr, "failed to open %s\n", file_path);

@@ -14,7 +14,7 @@ parser.add_argument('-o', '--output-prefix', help='prefix of output logs, defaul
 args = parser.parse_args()
 
 if args.output_prefix is None:
-    args.output_prefix = "./bw_send_" + args.config.split(".")[0]
+    args.output_prefix = "./bw_send_" + args.config.split(".")[0] + ("_bi" if args.bidirectional else "_send_only")
 
 NNODES = 2
 BASE_PORT = 15000
@@ -66,7 +66,7 @@ def get_params(device, port, gid, out_json, remote=None):
         bi_arg = ["-b", "--report-both", "-s", "8192"]
     else:
         bi_arg = ["-s", "8192"]
-    return ["-c", "SRD", "-n", "5000", "-N", "--out_json", f"--out_json_file={out_json}"] + bi_arg + ["-d", device, "-p", str(port), "-x", gid] + remote
+    return ["-c", "SRD", "-n", "20000", "-N", "--out_json", f"--out_json_file={out_json}"] + bi_arg + ["-d", device, "-p", str(port), "-x", gid] + remote
 
 def get_out_json_name(sess_idx):
     return args.output_prefix + f"_{'bi_' if args.bidirectional else ''}sess{sess_idx}_s{mc_sessions[sess_idx][0]}_r{mc_sessions[sess_idx][1]}_{'cli' if is_client else 'ser'}.json"

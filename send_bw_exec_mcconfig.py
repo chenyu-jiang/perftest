@@ -110,8 +110,6 @@ with open(args.config, "r") as f:
         ), f"Invalid device pair ({src_device},{dst_device}) in line {idx} in mcconfig. Src and dst device must locate on different nodes."
         mc_sessions.append((src_device, dst_device))
 
-os.environ["N_THREADS"] = str(len(mc_sessions))
-
 
 def get_node(dev_idx):
     return dev_idx // len(devices)
@@ -175,6 +173,7 @@ def get_out_json_name(sess_idx, is_client):
     return name
 
 
+n_local_sessions = 0
 params = []
 for session_idx, (src_idx, dst_idx) in enumerate(mc_sessions):
     src_node = get_node(src_idx)
@@ -199,5 +198,8 @@ for session_idx, (src_idx, dst_idx) in enumerate(mc_sessions):
         get_out_json_name(session_idx, is_client),
         remote=remote,
     )
+    n_local_sessions += 1
+
+os.environ["N_THREADS"] = str(n_local_sessions)
 
 subprocess.run([get_cmd()] + params)

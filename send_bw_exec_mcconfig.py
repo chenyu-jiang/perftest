@@ -143,7 +143,7 @@ def get_params(device, port, gid, out_json, remote=None):
         + bi_arg
         + ["-d", device, "-p", str(port), "-x", gid]
         + remote
-        + [";"]
+        + [":"]
     )
 
 

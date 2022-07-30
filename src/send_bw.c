@@ -615,7 +615,6 @@ int main(int argc, char *argv[])
 	int n_threads = atoi(n_threads_ptr);
 
 	assert(n_threads > 0 && "N_THREADS environment variable must be greater than 0");
-	// assert((argc - 1) % n_threads == 0 && "Number of arguments must be a multiple of N_THREADS");
 
 	int args_begin_idx[n_threads];
 	int args_end_idx[n_threads];
@@ -625,7 +624,7 @@ int main(int argc, char *argv[])
 	int current_thread = 0;
 	args_begin_idx[current_thread] = 1;
 	for(int i=1; i < argc; i++) {
-		if(argv[i][0] == ';') {
+		if(argv[i][0] == ':') {
 			args_end_idx[current_thread] = i;
 			per_thread_argcs[current_thread] = i - args_begin_idx[current_thread];
 			max_per_thread_argc = per_thread_argcs[current_thread] > max_per_thread_argc ? per_thread_argcs[current_thread] : max_per_thread_argc;
@@ -637,12 +636,11 @@ int main(int argc, char *argv[])
 	}
 	assert(max_per_thread_argc > 0 && "Failed to calculate per thread arguments.");
 
-	// int per_thread_argc = 1 + (argc - 1) / n_threads;
 	char* per_thread_argv[n_threads][max_per_thread_argc + 1];
 	for(int i=0; i < n_threads; i++) {
 		per_thread_argv[i][0] = argv[0];
 		for(int j=args_begin_idx[i]; j < args_end_idx[i]; j++) {
-			per_thread_argv[i][j] = argv[j];
+			per_thread_argv[i][j-args_begin_idx[i]+1] = argv[j];
 		}
 	}
 

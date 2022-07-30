@@ -610,14 +610,34 @@ int main(int argc, char *argv[])
 	int n_threads = atoi(n_threads_ptr);
 
 	assert(n_threads > 0 && "N_THREADS environment variable must be greater than 0");
-	assert((argc - 1) % n_threads == 0 && "Number of arguments must be a multiple of N_THREADS");
+	// assert((argc - 1) % n_threads == 0 && "Number of arguments must be a multiple of N_THREADS");
 
-	int per_thread_argc = 1 + (argc - 1) / n_threads;
-	char* per_thread_argv[n_threads][per_thread_argc];
+	int args_begin_idx[n_threads];
+	int args_end_idx[n_threads];
+	int per_thread_argcs[n_threads];
+	int max_per_thread_argc = 0;
+
+	int current_thread = 0;
+	args_begin_idx[current_thread] = 1;
+	for(int i=1; i < argc; i++) {
+		if(argv[i][0] == ';') {
+			args_end_idx[current_thread] = i;
+			per_thread_argcs[current_thread] = i - args_begin_idx[current_thread];
+			max_per_thread_argc = per_thread_argcs[current_thread] > max_per_thread_argc ? per_thread_argcs[current_thread] : max_per_thread_argc;
+			if (current_thread < n_threads - 1) {
+				args_begin_idx[current_thread + 1] = i + 1;
+				current_thread ++;
+			}
+		}
+	}
+	assert(max_per_thread_argc > 0 && "Failed to calculate per thread arguments.");
+
+	// int per_thread_argc = 1 + (argc - 1) / n_threads;
+	char* per_thread_argv[n_threads][max_per_thread_argc + 1];
 	for(int i=0; i < n_threads; i++) {
 		per_thread_argv[i][0] = argv[0];
-		for(int j=1; j < per_thread_argc; j++) {
-			per_thread_argv[i][j] = argv[i*(per_thread_argc-1) + j];
+		for(int j=args_begin_idx[i]; j < args_end_idx[i]; j++) {
+			per_thread_argv[i][j] = argv[j];
 		}
 	}
 
@@ -631,7 +651,7 @@ int main(int argc, char *argv[])
 		user_params[i].tst     = BW;
 		strncpy(user_params[i].version, VERSION, sizeof(user_params[i].version));
 		/* Configure the parameters values according to user arguments or defalut values. */
-		int ret_parser = parser(&user_params[i],per_thread_argv[i],per_thread_argc);
+		int ret_parser = parser(&user_params[i],per_thread_argv[i],per_thread_argcs[i]);
 		if (ret_parser) {
 			if (ret_parser != VERSION_EXIT && ret_parser != HELP_EXIT)
 				fprintf(stderr," Parser function exited with Error\n");

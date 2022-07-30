@@ -168,6 +168,11 @@ void* send_bw_thread(void* arg) {
 	int                      	i = 0, rc;
 	int                      	size_max_pow = 24;
 
+	if(user_param->machine == CLIENT) {
+		// wait for 10 seconds for server to start
+		sleep(10);
+	}
+
 	/* init default values to user's parameters */
 	memset(&ctx, 0,sizeof(struct pingpong_context));
 	memset(&mcg_params, 0 , sizeof(struct mcast_parameters));

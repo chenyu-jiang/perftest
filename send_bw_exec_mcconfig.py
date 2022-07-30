@@ -10,7 +10,13 @@ parser = argparse.ArgumentParser(
     description="Execute ib_send_bw tests according to mcconfig."
 )
 parser.add_argument("-c", "--config", help="mcconfig file", type=str, required=True)
-parser.add_argument("-H", "--hostfile", help="hostfile containing server ip addresses", type=str, required=True)
+parser.add_argument(
+    "-H",
+    "--hostfile",
+    help="hostfile containing server ip addresses",
+    type=str,
+    required=True,
+)
 parser.add_argument(
     "-d",
     "--devices",
@@ -70,11 +76,15 @@ if os.environ.get("HOST_IP", None):
 else:
     host_ip = subprocess.check_output(["hostname", "-I"]).decode("utf-8").split(" ")[0]
 
-assert host_ip in hosts, f"Host ip {host_ip} not in provided hostfile. If the automatically detected IP is incorrect, please set HOST_IP environment variable."
+assert (
+    host_ip in hosts
+), f"Host ip {host_ip} not in provided hostfile. If the automatically detected IP is incorrect, please set HOST_IP environment variable."
 current_node = hosts.index(host_ip)
+
 
 def get_node(dev_idx):
     return dev_idx // len(devices)
+
 
 mc_sessions = []
 with open(args.config, "r") as f:
@@ -95,15 +105,17 @@ with open(args.config, "r") as f:
         assert (
             0 <= dst_device < nnodes * len(devices)
         ), f"Invalid destination device {dst_device} in line {idx} in mcconfig"
-        assert (
-            get_node(src_device) != get_node(dst_device)
+        assert get_node(src_device) != get_node(
+            dst_device
         ), f"Invalid device pair ({src_device},{dst_device}) in line {idx} in mcconfig. Src and dst device must locate on different nodes."
         mc_sessions.append((src_device, dst_device))
 
 os.environ["N_THREADS"] = str(len(mc_sessions))
 
+
 def get_node(dev_idx):
     return dev_idx // len(devices)
+
 
 def get_cmd():
     exec_cmd = shutil.which("ib_send_bw")
@@ -112,6 +124,7 @@ def get_cmd():
         if exec_cmd is None:
             raise Exception("ib_send_bw not found")
     return exec_cmd
+
 
 def get_params(device, port, gid, out_json, remote=None):
     if remote:

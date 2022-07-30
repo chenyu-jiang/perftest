@@ -654,7 +654,7 @@ int main(int argc, char *argv[])
 		user_params[i].tst     = BW;
 		strncpy(user_params[i].version, VERSION, sizeof(user_params[i].version));
 		/* Configure the parameters values according to user arguments or defalut values. */
-		int ret_parser = parser(&user_params[i],per_thread_argv[i],per_thread_argcs[i]);
+		int ret_parser = parser(&user_params[i],per_thread_argv[i],per_thread_argcs[i]+1);
 		if (ret_parser) {
 			if (ret_parser != VERSION_EXIT && ret_parser != HELP_EXIT)
 				fprintf(stderr," Parser function exited with Error\n");

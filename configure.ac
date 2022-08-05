@@ -247,6 +247,34 @@ AS_IF([test "x$enable_rocm" = xyes], [
 
 AM_CONDITIONAL([ROCM], [test x$enable_rocm = xyes])
 
+AM_CONDITIONAL([MPI], [test x$enable_mpi = xyes])
+
+AC_ARG_ENABLE([mpi],
+              [AS_HELP_STRING([--enable-mpi],
+                              [Enable MPI support in send_bw test.])
+              ],
+              [],
+              [enable_mpi=no])
+
+AC_ARG_VAR(MPICC, Path to MPI compiler)
+
+AS_IF([test "x$enable_mpi" = xyes], [
+       AS_IF([test "x$MPICC" = x], [MPICC=mpicc])
+       AC_CHECK_PROG([MPICC],,[AC_MSG_ERROR([mpicc is not found, consider manually set mpicc location by running ./configure --enable-mpi MPICC=<mpicc path>])])
+       MPI_COMPILE_FLAGS=$("$MPICC" --showme:compile)
+       MPI_LINK_FLAGS=$("$MPICC" --showme:link)
+       AC_DEFINE([HAVE_MPI], [1], [Enable MPI])
+       CPPFLAGS="$MPI_COMPILE_FLAGS $CPPFLAGS"
+       LDFLAGS="$MPI_LINK_FLAGS $LDFLAGS"
+       AC_CHECK_HEADERS([mpi.h], [], 
+       [AC_MSG_ERROR([mpi.h cannot be found. Check flags provided by $MPICC: $MPI_COMPILE_FLAGS])],
+       [#ifdef HAVE_MPI
+        #include <mpi.h>
+        #endif
+        ])
+        AC_CHECK_LIB([mpi], [MPI_Init], [], [AC_MSG_ERROR([mpi library cannot be found. Check flags provided by $MPICC: $MPI_LINK_FLAGS])])
+       ])
+
 AC_TRY_LINK([
 #include <infiniband/verbs.h>],
         [int x = IBV_ACCESS_ON_DEMAND;],[HAVE_EX_ODP=yes], [HAVE_EX_ODP=no])

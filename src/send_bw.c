@@ -45,6 +45,10 @@
 #include "multicast_resources.h"
 #include "perftest_communication.h"
 
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif
+
 static pthread_barrier_t barrier;
 
 /******************************************************************************
@@ -607,10 +611,66 @@ return_error:
 
 int main(int argc, char *argv[])
 {
+#ifdef HAVE_MPI
+#define MAX_LINE_SIZE 1024
+#define MAX_N_LINES 1024
+
+	MPI_Init(NULL, NULL);
+	int world_size;
+	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+	int world_rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
+	// read parameters from file instread of using args
+	if(argc != 2) {
+		printf("Usage: %s ARGS_FILE\n", argv[0]);
+		printf("When compiling with MPI, program args are read from ARGS_FILE instead of command line.\n"
+		       "ARGS_FILE format: one arg per line. ':' separates threads within each rank, and empty line separates ranks.\n");
+		return FAILURE;
+	}
+	char* args_file = argv[1];
+	FILE *fp;
+	fp = fopen(args_file,"r");
+	if (!fp) {
+		fprintf(stderr, "Failed to open file %s.\n", args_file);
+		return FAILURE;
+	}
+	size_t line_size = MAX_LINE_SIZE;
+	char* line_buff = malloc(MAX_LINE_SIZE);
+	int curr_rank = 0;
+	int nchar = 0;
+	char* rank_argv[MAX_N_LINES];
+	rank_argv[0] = argv[0];
+	int rank_argc = 1;
+	while((nchar = getline(&line_buff, &line_size, fp)) != -1) {
+		if (nchar == 1) {
+			// empty line, new rank
+			curr_rank ++;
+			if(curr_rank > world_rank) {
+				break;
+			}
+			continue;
+		}
+		if (curr_rank == world_rank) {
+			// add arg to current rank
+			rank_argv[rank_argc] = malloc(nchar);
+			memcpy(rank_argv[rank_argc],line_buff,nchar-1);
+			rank_argv[rank_argc][nchar-1] = '\0';
+			rank_argc++;
+		}
+	}
+	free(line_buff);
+	fclose(fp);
+	argc = rank_argc;
+	for(int i=0; i< argc; i++) {
+		argv[i] = rank_argv[i];
+	}
+#endif
 	char* n_threads_ptr = getenv("N_THREADS");
 	if(!n_threads_ptr) {
 		fprintf(stderr, "N_THREADS environment variable is not set\n");
-		return 1;
+		return FAILURE;
 	}
 	int n_threads = atoi(n_threads_ptr);
 
@@ -675,6 +735,10 @@ int main(int argc, char *argv[])
 
 	pthread_t threads[n_threads];
 
+#ifdef HAVE_MPI
+	MPI_Barrier(MPI_COMM_WORLD);
+#endif
+
 	for(int i=0; i < n_threads; i++) {
 		pthread_create(&threads[i], NULL, &send_bw_thread, (void*)(&user_params[i]));
 	}
@@ -684,6 +748,13 @@ int main(int argc, char *argv[])
 	}
 
 	pthread_barrier_destroy(&barrier);
+
+#ifdef HAVE_MPI
+	for(int i=1; i < argc; i++) {
+		free(rank_argv[i]);
+	}
+	MPI_Finalize();
+#endif
 
 	return SUCCESS;
 }

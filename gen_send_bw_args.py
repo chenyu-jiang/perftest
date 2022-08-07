@@ -4,7 +4,6 @@ import subprocess
 import argparse
 
 PACKET_SIZE = 8192
-N_ITERS = 20000
 
 def add_parser_args(parser):
     # adds common parser args, returns nothing
@@ -49,6 +48,13 @@ def add_parser_args(parser):
         help="Number of queue pairs running in the process, default 1",
         type=int,
         default=1,
+    )
+    parser.add_argument(
+        "-i",
+        "--iters",
+        help="Number of iterations to run, default 20000",
+        type=int,
+        default=20000
     )
     parser.add_argument(
         "-l",
@@ -131,7 +137,7 @@ def gen_ib_send_args(args, only_for_host=None):
                 "-c",
                 "SRD",
                 "-n",
-                str(N_ITERS),
+                str(args.iters),
                 "-N",
                 "--out_json",
                 f"--out_json_file={out_json}",
@@ -192,7 +198,7 @@ def gen_ib_send_args(args, only_for_host=None):
                 remote=remote,
             )
             n_local_sessions += 1
-        if current_node != len(hosts) - 1 and not only_for_host:
+        if not only_for_host:
             params.append("") # add empty line to separate nodes
 
     return params, n_local_sessions
@@ -219,3 +225,4 @@ if __name__ == "__main__":
 
     with open(args.output, "w") as f:
         f.write("\n".join(output_args))
+        f.write("\n") # we need an extra newline since join will not add \n to last element

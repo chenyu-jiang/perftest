@@ -613,7 +613,7 @@ int main(int argc, char *argv[])
 {
 #ifdef HAVE_MPI
 #define MAX_LINE_SIZE 1024
-#define MAX_N_LINES 1024
+#define MAX_N_LINES 1048576
 
 	MPI_Init(NULL, NULL);
 	int world_size;
@@ -623,13 +623,24 @@ int main(int argc, char *argv[])
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
 	// read parameters from file instread of using args
-	if(argc != 2) {
-		printf("Usage: %s ARGS_FILE\n", argv[0]);
-		printf("When compiling with MPI, program args are read from ARGS_FILE instead of command line.\n"
+	if(argc != 3) {
+		printf("Usage: %s NTHREADS ARGS_FILE\n", argv[0]);
+		printf("When compiling with MPI, NTHREADS is read fromm commmandline instead of environment, program args are read from ARGS_FILE instead of command line.\n"
 		       "ARGS_FILE format: one arg per line. ':' separates threads within each rank, and empty line separates ranks.\n");
 		return FAILURE;
 	}
-	char* args_file = argv[1];
+	char* n_threads_ptr = argv[1];
+	if (n_threads_ptr == NULL) {
+		printf("Failed to read thread number.\n");
+		return FAILURE;
+	}
+	int n_threads = atoi(n_threads_ptr);
+	if (n_threads <= 0) {
+		printf("Invalid thread number: %d from parameter %s.\n", n_threads, argv[1]);
+		return FAILURE;
+	}
+
+	char* args_file = argv[2];
 	FILE *fp;
 	fp = fopen(args_file,"r");
 	if (!fp) {
@@ -666,7 +677,8 @@ int main(int argc, char *argv[])
 	for(int i=0; i< argc; i++) {
 		argv[i] = rank_argv[i];
 	}
-#endif
+	printf("[Rank %d] Read args file complete. argc: %d\n", world_rank, argc);
+#else
 	char* n_threads_ptr = getenv("N_THREADS");
 	if(!n_threads_ptr) {
 		fprintf(stderr, "N_THREADS environment variable is not set\n");
@@ -675,6 +687,7 @@ int main(int argc, char *argv[])
 	int n_threads = atoi(n_threads_ptr);
 
 	assert(n_threads > 0 && "N_THREADS environment variable must be greater than 0");
+#endif
 
 	int args_begin_idx[n_threads];
 	int args_end_idx[n_threads];

@@ -197,9 +197,9 @@ def gen_ib_send_args(args, only_for_host=None):
                 get_out_json_name(session_idx, is_client),
                 remote=remote,
             )
+            if not only_for_host:
+                params.append("") # add empty line to separate processes
             n_local_sessions += 1
-        if not only_for_host:
-            params.append("") # add empty line to separate nodes
 
     return params, n_local_sessions
 

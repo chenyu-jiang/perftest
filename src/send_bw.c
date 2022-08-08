@@ -159,7 +159,6 @@ static int send_destroy_ctx(
 /******************************************************************************
  *
  ******************************************************************************/
-
 void* send_bw_thread(void* arg) {
 	struct perftest_parameters* user_param = (struct perftest_parameters*)arg;
 	struct ibv_device			*ib_dev = NULL;
@@ -174,7 +173,7 @@ void* send_bw_thread(void* arg) {
 
 	if(user_param->machine == CLIENT) {
 		// wait for 10 seconds for server to start
-		sleep(10);
+		sleep(5);
 	}
 
 	/* init default values to user's parameters */
@@ -186,32 +185,52 @@ void* send_bw_thread(void* arg) {
 	ib_dev = ctx_find_dev(&(user_param->ib_devname));
 	if (!ib_dev) {
 		fprintf(stderr," Unable to find the Infiniband/RoCE device\n");
-		pthread_exit(NULL);
+		#ifndef HAVE_MPI
+			pthread_exit(NULL);
+		#else
+			return NULL;
+		#endif
 	}
 
 	/* Getting the relevant context from the device */
 	ctx.context = ctx_open_device(ib_dev, user_param);
 	if (!ctx.context) {
 		fprintf(stderr, " Couldn't get context for the device\n");
-		pthread_exit(NULL);
+		#ifndef HAVE_MPI
+			pthread_exit(NULL);
+		#else
+			return NULL;
+		#endif
 	}
 
 	/* Verify user parameters that require the device context,
 	 * the function will print the relevent error info. */
 	if (verify_params_with_device_context(ctx.context, user_param)) {
-		pthread_exit(NULL);
+		#ifndef HAVE_MPI
+			pthread_exit(NULL);
+		#else
+			return NULL;
+		#endif
 	}
 
 	/* See if MTU and link type are valid and supported. */
 	if (check_link(ctx.context, user_param)) {
 		fprintf(stderr, " Couldn't get context for the device\n");
-		pthread_exit(NULL);
+		#ifndef HAVE_MPI
+			pthread_exit(NULL);
+		#else
+			return NULL;
+		#endif
 	}
 
 	/* copy the relevant user parameters to the comm struct + creating rdma_cm resources. */
 	if (create_comm_struct(&user_comm, user_param)) {
 		fprintf(stderr," Unable to create RDMA_CM resources\n");
-		pthread_exit(NULL);
+		#ifndef HAVE_MPI
+			pthread_exit(NULL);
+		#else
+			return NULL;
+		#endif
 	}
 
 	if (user_param->output == FULL_VERBOSITY && user_param->machine == SERVER) {
@@ -224,7 +243,11 @@ void* send_bw_thread(void* arg) {
 	if (establish_connection(&user_comm)) {
 		fprintf(stderr," Unable to init the socket connection\n");
 		dealloc_comm_struct(&user_comm, user_param);
-		pthread_exit(NULL);
+		#ifndef HAVE_MPI
+			pthread_exit(NULL);
+		#else
+			return NULL;
+		#endif
 	}
 
 	exchange_versions(&user_comm, user_param);
@@ -235,7 +258,11 @@ void* send_bw_thread(void* arg) {
 	if (check_mtu(ctx.context, user_param, &user_comm)) {
 		fprintf(stderr, " Couldn't get context for the device\n");
 		dealloc_comm_struct(&user_comm, user_param);
-		pthread_exit(NULL);
+		#ifndef HAVE_MPI
+			pthread_exit(NULL);
+		#else
+			return NULL;
+		#endif
 	}
 
 	MAIN_ALLOC(my_dest, struct pingpong_dest, user_param->num_of_qps, return_error);
@@ -427,8 +454,11 @@ void* send_bw_thread(void* arg) {
 					ctx.credit_buf[j] = 0;
 			}
 
-
+#ifdef HAVE_MPI
+			MPI_Barrier(MPI_COMM_WORLD);
+#else
 			pthread_barrier_wait(&barrier);
+#endif
 			if (user_param->duplex) {
 				if(run_iter_bi(&ctx,user_param)){
 					goto free_mem;
@@ -445,7 +475,11 @@ void* send_bw_thread(void* arg) {
 					goto free_mem;
 				}
 			}
+#ifdef HAVE_MPI
+			MPI_Barrier(MPI_COMM_WORLD);
+#else
 			pthread_barrier_wait(&barrier);
+#endif
 			print_report_bw(user_param,&my_bw_rep);
 
 			if (user_param->duplex && user_param->test_type != DURATION) {
@@ -479,7 +513,11 @@ void* send_bw_thread(void* arg) {
 			fprintf(stderr,"Failed to exchange data between server and clients\n");
 			goto free_mem;
 		}
-		pthread_barrier_wait(&barrier);
+#ifdef HAVE_MPI
+			MPI_Barrier(MPI_COMM_WORLD);
+#else
+			pthread_barrier_wait(&barrier);
+#endif
 		if (user_param->duplex) {
 
 			if(run_iter_bi(&ctx,user_param)){
@@ -494,7 +532,11 @@ void* send_bw_thread(void* arg) {
 		} else if(run_iter_bw_server(&ctx,user_param)) {
 			goto free_mem;
 		}
-		pthread_barrier_wait(&barrier);
+#ifdef HAVE_MPI
+			MPI_Barrier(MPI_COMM_WORLD);
+#else
+			pthread_barrier_wait(&barrier);
+#endif
 		print_report_bw(user_param,&my_bw_rep);
 
 		if (user_param->duplex && user_param->test_type != DURATION) {
@@ -534,7 +576,11 @@ void* send_bw_thread(void* arg) {
 			fprintf(stderr,"Failed to exchange data between server and clients\n");
 			goto free_mem;
 		}
-		pthread_barrier_wait(&barrier);
+#ifdef HAVE_MPI
+			MPI_Barrier(MPI_COMM_WORLD);
+#else
+			pthread_barrier_wait(&barrier);
+#endif
 		if (user_param->machine == CLIENT) {
 
 			if(run_iter_bw_infinitely(&ctx,user_param)) {
@@ -549,7 +595,11 @@ void* send_bw_thread(void* arg) {
 				goto free_mem;
 			}
 		}
-		pthread_barrier_wait(&barrier);
+#ifdef HAVE_MPI
+			MPI_Barrier(MPI_COMM_WORLD);
+#else
+			pthread_barrier_wait(&barrier);
+#endif
 	}
 
 	if (user_param->output == FULL_VERBOSITY) {
@@ -583,15 +633,27 @@ void* send_bw_thread(void* arg) {
 
 	if (!user_param->is_bw_limit_passed && (user_param->is_limit_bw == ON ) ) {
 		fprintf(stderr,"Error: BW result is below bw limit\n");
-		pthread_exit(NULL);
+		#ifndef HAVE_MPI
+			pthread_exit(NULL);
+		#else
+			return NULL;
+		#endif
 	}
 
 	if (!user_param->is_msgrate_limit_passed && (user_param->is_limit_bw == ON )) {
 		fprintf(stderr,"Error: Msg rate  is below msg_rate limit\n");
-		pthread_exit(NULL);
+		#ifndef HAVE_MPI
+			pthread_exit(NULL);
+		#else
+			return NULL;
+		#endif
 	}
 
-	pthread_exit(NULL);
+	#ifndef HAVE_MPI
+		pthread_exit(NULL);
+	#else
+		return NULL;
+	#endif
 
 destroy_context:
 	if (destroy_ctx(&ctx,user_param))
@@ -606,7 +668,11 @@ free_mem:
 free_my_dest:
 	free(my_dest);
 return_error:
-	pthread_exit(NULL);
+	#ifndef HAVE_MPI
+		pthread_exit(NULL);
+	#else
+		return NULL;
+	#endif
 }
 
 int main(int argc, char *argv[])
@@ -623,24 +689,14 @@ int main(int argc, char *argv[])
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
 	// read parameters from file instread of using args
-	if(argc != 3) {
-		printf("Usage: %s NTHREADS ARGS_FILE\n", argv[0]);
-		printf("When compiling with MPI, NTHREADS is read fromm commmandline instead of environment, program args are read from ARGS_FILE instead of command line.\n"
+	if(argc != 2) {
+		printf("Usage: %s ARGS_FILE\n", argv[0]);
+		printf("When compiling with MPI, one process will execute a session instead of thread. Program args are read from ARGS_FILE instead of command line.\n"
 		       "ARGS_FILE format: one arg per line. ':' separates threads within each rank, and empty line separates ranks.\n");
 		return FAILURE;
 	}
-	char* n_threads_ptr = argv[1];
-	if (n_threads_ptr == NULL) {
-		printf("Failed to read thread number.\n");
-		return FAILURE;
-	}
-	int n_threads = atoi(n_threads_ptr);
-	if (n_threads <= 0) {
-		printf("Invalid thread number: %d from parameter %s.\n", n_threads, argv[1]);
-		return FAILURE;
-	}
 
-	char* args_file = argv[2];
+	char* args_file = argv[1];
 	FILE *fp;
 	fp = fopen(args_file,"r");
 	if (!fp) {
@@ -658,9 +714,6 @@ int main(int argc, char *argv[])
 		if (nchar == 1) {
 			// empty line, new rank
 			curr_rank ++;
-			if(curr_rank > world_rank) {
-				break;
-			}
 			continue;
 		}
 		if (curr_rank == world_rank) {
@@ -671,6 +724,7 @@ int main(int argc, char *argv[])
 			rank_argc++;
 		}
 	}
+	assert ((curr_rank == world_size) && "Number of ranks in ARGS_FILE is not equal to world size.");
 	free(line_buff);
 	fclose(fp);
 	argc = rank_argc;
@@ -678,6 +732,8 @@ int main(int argc, char *argv[])
 		argv[i] = rank_argv[i];
 	}
 	printf("[Rank %d] Read args file complete. argc: %d\n", world_rank, argc);
+
+	int n_threads = 1;
 #else
 	char* n_threads_ptr = getenv("N_THREADS");
 	if(!n_threads_ptr) {
@@ -698,6 +754,9 @@ int main(int argc, char *argv[])
 	args_begin_idx[current_thread] = 1;
 	for(int i=1; i < argc; i++) {
 		if(argv[i][0] == ':') {
+			#ifdef HAVE_MPI
+				assert(current_thread == 0 && "Invalid args. Number of threads must be 1 when using MPI");
+			#endif
 			args_end_idx[current_thread] = i;
 			per_thread_argcs[current_thread] = i - args_begin_idx[current_thread];
 			max_per_thread_argc = per_thread_argcs[current_thread] > max_per_thread_argc ? per_thread_argcs[current_thread] : max_per_thread_argc;
@@ -746,12 +805,14 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	pthread_t threads[n_threads];
-
 #ifdef HAVE_MPI
 	MPI_Barrier(MPI_COMM_WORLD);
-#endif
+	// create sub communicator for server and clients separately
+	int is_client = user_params[0].machine == CLIENT;
 
+	send_bw_thread(&user_params[0]);
+#else
+	pthread_t threads[n_threads];
 	for(int i=0; i < n_threads; i++) {
 		pthread_create(&threads[i], NULL, &send_bw_thread, (void*)(&user_params[i]));
 	}
@@ -759,6 +820,7 @@ int main(int argc, char *argv[])
 	for(int i=0; i < n_threads; i++) {
 		pthread_join(threads[i], NULL);
 	}
+#endif
 
 	pthread_barrier_destroy(&barrier);
 
